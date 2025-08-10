@@ -1008,12 +1008,14 @@
             const totalSolicitudesMejoramiento = datosSolicitudes.mejoramiento.total;
             const totalDisenosAmpliacion = datosDisenos.ampliacion.total;
             const totalDisenosMejoramiento = datosDisenos.mejoramiento.total;
-            
+
+
             // Calcular eficiencias con validación
             const eficienciaAmpliacion = totalSolicitudesAmpliacion > 0 ?
                 Math.min((totalDisenosAmpliacion / totalSolicitudesAmpliacion * 100), 100) : 0;
             const eficienciaMejoramiento = totalSolicitudesMejoramiento > 0 ?
                 Math.min((totalDisenosMejoramiento / totalSolicitudesMejoramiento * 100), 100) : 0;
+            
 
             // Calcular promedio ponderado
             const totalSolicitudes = totalSolicitudesAmpliacion + totalSolicitudesMejoramiento;
