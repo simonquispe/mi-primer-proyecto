@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>Registro de Lectura de Medidores – Ultra HD</title>
+    <title>Registro de Lectura de Medidores – Calidad Optimizada</title>
 
     <!-- Leaflet -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
@@ -52,16 +52,20 @@
     </style>
 </head>
 <body>
-    <h1>Registro de Lectura de Medidores – Ultra HD</h1>
+    <h1>Registro de Lectura de Medidores – Calidad Optimizada</h1>
 
     <label for="medidor">N° Medidor:</label>
-    <input type="text" id="medidor"><br>
+    <input type="text" id="medidor">  
 
-    <label for="lectura">Lectura (kWh):</label>
-    <input type="text" id="lectura"><br>
 
-    <label for="foto">Foto del Medidor (máxima calidad):</label>
-    <input type="file" id="foto" accept="image/*"><br><br>
+    <label for="lectura">Lectura (kWh ):</label>
+    <input type="text" id="lectura">  
+
+
+    <label for="foto">Foto del Medidor:</label>
+    <input type="file" id="foto" accept="image/*">  
+  
+
 
     <button onclick="guardarRegistro()">Guardar Registro</button>
     <button onclick="borrarTodos()">Borrar Todos</button>
@@ -71,12 +75,44 @@
 
     <script>
     /* --------------------------------------------------
-       CONFIGURACIÓN MÁXIMA: imagen sin pérdida / JPEG 100
+       VERSIÓN CON COMPRESIÓN DE IMAGEN INTELIGENTE
     -------------------------------------------------- */
     let registros = JSON.parse(localStorage.getItem("registros")) || [];
     let contador  = registros.length ? Math.max(...registros.map(r => r.id)) + 1 : 1;
 
-    const MAX_CHUNK_SIZE = 1024 * 1024 * 4.5;   // 4.5 MB
+    // --- NUEVA FUNCIÓN DE COMPRESIÓN ---
+    function comprimirImagen(file, callback) {
+        const MAX_ANCHO = 1280; // Ancho máximo para la imagen comprimida
+        const CALIDAD_JPG = 0.85; // Calidad del JPG (0.85 es un gran equilibrio)
+        const reader = new FileReader();
+
+        reader.onload = (e) => {
+            const img = new Image();
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                
+                // Calcula las nuevas dimensiones manteniendo la proporción
+                let ancho = img.width;
+                let alto = img.height;
+                if (ancho > MAX_ANCHO) {
+                    alto = (MAX_ANCHO / ancho) * alto;
+                    ancho = MAX_ANCHO;
+                }
+
+                canvas.width = ancho;
+                canvas.height = alto;
+
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, ancho, alto);
+
+                // Exporta la imagen comprimida como un JPG de alta calidad
+                const dataUrl = canvas.toDataURL('image/jpeg', CALIDAD_JPG);
+                callback(dataUrl);
+            };
+            img.src = e.target.result;
+        };
+        reader.readAsDataURL(file);
+    }
 
     async function guardarRegistro() {
         const nro      = document.getElementById("medidor").value.trim();
@@ -88,60 +124,46 @@
             return;
         }
 
-        try {
-            const buffer = await fotoFile.arrayBuffer();
-            const blob   = new Blob([buffer], { type: fotoFile.type });
-            const img    = await createImageBitmap(blob);
+        // Muestra un estado de "Cargando..."
+        const botonGuardar = document.querySelector('button[onclick="guardarRegistro()"]');
+        const textoOriginal = botonGuardar.textContent;
+        botonGuardar.textContent = "Procesando...";
+        botonGuardar.disabled = true;
 
-            // Canvas al tamaño real
-            const canvas = new OffscreenCanvas(img.width, img.height);
-            const ctx    = canvas.getContext("2d");
-            ctx.imageSmoothingEnabled = false; // imagen nítida
-            ctx.drawImage(img, 0, 0);
+        // Llama a la nueva función de compresión
+        comprimirImagen(fotoFile, (fotoComprimidaURL) => {
+            // El resto del código se ejecuta cuando la compresión termina
+            navigator.geolocation.getCurrentPosition(pos => {
+                const registro = {
+                    nro,
+                    lectura,
+                    fecha: new Date().toLocaleString(),
+                    lat: pos.coords.latitude,
+                    lon: pos.coords.longitude,
+                    foto: fotoComprimidaURL, // <-- Guardamos la URL de la imagen comprimida
+                    id: contador++
+                };
 
-            // PNG sin pérdida (true) o JPEG 100 % (false)
-            const useLossless = true;
-            const mime        = useLossless ? "image/png" : "image/jpeg";
-            const quality     = useLossless ? undefined : 1.0;
+                registros.push(registro);
+                localStorage.setItem("registros", JSON.stringify(registros));
+                mostrarRegistros();
 
-            const blobOut = await canvas.convertToBlob({ type: mime, quality });
+                // Reset
+                document.getElementById("medidor").value = "";
+                document.getElementById("lectura").value = "";
+                document.getElementById("foto").value   = "";
+                
+                // Restaura el botón
+                botonGuardar.textContent = textoOriginal;
+                botonGuardar.disabled = false;
 
-            if (blobOut.size > MAX_CHUNK_SIZE) {
-                alert("La imagen es demasiado grande para almacenarla localmente.");
-                return;
-            }
-
-            const reader = new FileReader();
-            reader.onload = () => {
-                const dataURL = reader.result;
-
-                navigator.geolocation.getCurrentPosition(pos => {
-                    const registro = {
-                        nro,
-                        lectura,
-                        fecha: new Date().toLocaleString(),
-                        lat: pos.coords.latitude,
-                        lon: pos.coords.longitude,
-                        foto: dataURL,
-                        id: contador++
-                    };
-
-                    registros.push(registro);
-                    localStorage.setItem("registros", JSON.stringify(registros));
-                    mostrarRegistros();
-
-                    // Reset
-                    document.getElementById("medidor").value = "";
-                    document.getElementById("lectura").value = "";
-                    document.getElementById("foto").value   = "";
-                }, err => alert("GPS: " + err.message));
-            };
-            reader.readAsDataURL(blobOut);
-
-        } catch (e) {
-            console.error(e);
-            alert("Error procesando imagen: " + e.message);
-        }
+            }, err => {
+                alert("GPS: " + err.message);
+                // Restaura el botón también en caso de error
+                botonGuardar.textContent = textoOriginal;
+                botonGuardar.disabled = false;
+            });
+        });
     }
 
     function mostrarRegistros() {
@@ -168,13 +190,13 @@
                     <div class="mapa" id="map${reg.id}"></div>
                 </div>
                 <div class="columna" style="flex:0.3; justify-content:center;">
-                    <button class="borrar-btn" onclick="borrarRegistro(${index})">Borrar</button>
+                    <button class="borrar-btn" onclick="borrarRegistro(${index} )">Borrar</button>
                 </div>
             `;
             registrosDiv.appendChild(registro);
 
             const map = L.map(`map${reg.id}`).setView([reg.lat, reg.lon], 16);
-            L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 19 })
+            L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 19 } )
              .addTo(map);
             L.marker([reg.lat, reg.lon]).addTo(map)
               .bindPopup("Ubicación del medidor")
@@ -204,3 +226,4 @@
     </script>
 </body>
 </html>
+
