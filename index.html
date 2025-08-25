@@ -49,6 +49,33 @@
             text-align: center;
             margin-bottom: 5px;
         }
+
+/* --- INICIO DEL NUEVO CÓDIGO ADAPTATIVO --- */
+
+/* Media Query para pantallas pequeñas (móviles en vertical) */
+@media (max-width: 768px) {
+    .registro {
+        flex-direction: column; /* Apila las columnas verticalmente */
+        align-items: stretch;   /* Estira las columnas para que ocupen todo el ancho */
+    }
+
+    .columna {
+        height: auto; /* Altura automática para el contenido */
+    }
+
+    .columna img, .columna .mapa {
+        height: 250px; /* Mantenemos una altura fija para la imagen y el mapa */
+        object-fit: cover; /* La imagen cubrirá el espacio para verse mejor */
+    }
+
+    .columna.columna-borrar {
+        align-self: center; /* Centra el botón de borrar */
+        margin-top: 10px;
+    }
+}
+
+/* --- FIN DEL NUEVO CÓDIGO ADAPTATIVO --- */
+        
     </style>
 </head>
 <body>
@@ -171,6 +198,7 @@
             registro.className = "registro";
             registro.innerHTML = `
                 <div class="info columna">
+                
                     <p><b>N° Medidor:</b> ${reg.nro}</p>
                     <p><b>Lectura:</b> ${reg.lectura} kWh</p>
                     <p><b>Fecha:</b> ${reg.fecha}</p>
@@ -185,8 +213,8 @@
                     <div class="titulo-col">Mapa</div>
                     <div class="mapa" id="map${reg.id}"></div>
                 </div>
-                <div class="columna" style="flex:0.3; justify-content:center;">
                     <button class="borrar-btn" onclick="borrarRegistro(${index})">Borrar</button>
+                    <div class="columna columna-borrar" style="flex:0.3; justify-content:center;">
                 </div>
             `;
             registrosDiv.appendChild(registro);
